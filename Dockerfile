@@ -34,10 +34,8 @@ RUN npm ci --omit=dev
 COPY --from=server-builder /app/dist ./dist
 COPY --from=webapp-builder /app/webapp/dist ./webapp/dist
 
-# Create directory for persistent SQLite data
-RUN mkdir -p /app/data && chown -R node:node /app
-
-USER node
+# Directory for SQLite database and emoji cache
+RUN mkdir -p /app/data
 
 EXPOSE 3000
 
