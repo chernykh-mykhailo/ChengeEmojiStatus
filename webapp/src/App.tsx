@@ -69,6 +69,15 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleEmojisReordered = (reorderedEmojis: EmojiItem[]) => {
+    if (data) {
+      setData({
+        ...data,
+        emojis: reorderedEmojis,
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -113,6 +122,7 @@ export const App: React.FC = () => {
         currentEmojiIndex={data.user.currentEmojiIndex}
         onEmojiAdded={handleEmojiAdded}
         onEmojiDeleted={handleEmojiDeleted}
+        onEmojisReordered={handleEmojisReordered}
       />
       <LogsCard logs={data.recentLogs} />
     </div>

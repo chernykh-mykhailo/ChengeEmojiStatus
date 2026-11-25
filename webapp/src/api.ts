@@ -67,6 +67,13 @@ export const api = {
     });
   },
 
+  reorderEmojis: (emojiIds: number[]): Promise<{ success: boolean }> => {
+    return request('/api/emojis/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ emojiIds }),
+    });
+  },
+
   triggerRotation: (): Promise<{ success: boolean; customEmojiId: string }> => {
     return request('/api/emojis/rotate', {
       method: 'POST',
