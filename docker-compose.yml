@@ -1,0 +1,18 @@
+services:
+  emoji-rotator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tg-emoji-rotator
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - WEBAPP_URL=${WEBAPP_URL}
+      - PORT=3000
+      - DB_PATH=/app/data/bot.db
+      - APP_TIMEZONE=${APP_TIMEZONE:-Europe/Kyiv}
+    volumes:
+      # Збереження SQLite бази даних на хості
+      - ./data:/app/data
