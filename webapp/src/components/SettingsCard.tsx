@@ -19,21 +19,36 @@ const DAYS = [
 ];
 
 export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpdated }) => {
-  const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
 
-  const saveSetting = async (payload: Parameters<typeof api.updateSettings>[0]) => {
-    setSaving(true);
-    try {
-      const res = await api.updateSettings(payload);
+  // Optimistic UI update: updates screen immediately (0ms), syncs to backend in background
+  const applySetting = (payload: Parameters<typeof api.updateSettings>[0]) => {
+    // 1. Immediate haptic feedback
+    window.Telegram?.WebApp.HapticFeedback?.impactOccurred('light');
+
+    // 2. Instant local UI update
+    const previousUser = { ...user };
+    const optimisticUser: User = {
+      ...user,
+      ...(payload.isRotationEnabled !== undefined ? { isRotationEnabled: payload.isRotationEnabled } : {}),
+      ...(payload.rotationMode ? { rotationMode: payload.rotationMode } : {}),
+      ...(payload.frequency ? { frequency: payload.frequency } : {}),
+      ...(payload.intervalHours !== undefined ? { intervalHours: payload.intervalHours } : {}),
+      ...(payload.targetDays ? { targetDays: payload.targetDays } : {}),
+      ...(payload.rotateHour !== undefined ? { rotateHour: payload.rotateHour } : {}),
+    };
+    onSettingsUpdated(optimisticUser);
+
+    // 3. Background network sync
+    api.updateSettings(payload).then((res) => {
       onSettingsUpdated(res.user);
-      window.Telegram?.WebApp.HapticFeedback?.impactOccurred('light');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
+    }).catch((err) => {
+      console.error('Failed to sync settings:', err);
+      // Revert if network error
+      onSettingsUpdated(previousUser);
+      window.Telegram?.WebApp.HapticFeedback?.notificationOccurred('error');
+    });
   };
 
   const handleToggleDay = (dayId: number) => {
@@ -46,7 +61,7 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
       nextDays.push(dayId);
       nextDays.sort((a, b) => a - b);
     }
-    saveSetting({ targetDays: nextDays });
+    applySetting({ targetDays: nextDays });
   };
 
   const handleTestRotation = async () => {
@@ -79,14 +94,13 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
           </p>
         </div>
         <button
-          onClick={() => saveSetting({ isRotationEnabled: !user.isRotationEnabled })}
-          disabled={saving}
-          className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out ${
+          onClick={() => applySetting({ isRotationEnabled: !user.isRotationEnabled })}
+          className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-150 ease-in-out cursor-pointer active:scale-95 ${
             user.isRotationEnabled ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'
           }`}
         >
           <div
-            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-150 ease-in-out ${
               user.isRotationEnabled ? 'translate-x-6' : 'translate-x-0'
             }`}
           />
@@ -96,11 +110,10 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
       {/* Rotation Mode: Sequential vs Random */}
       <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 grid grid-cols-2 gap-2">
         <button
-          onClick={() => saveSetting({ rotationMode: 'sequential' })}
-          disabled={saving}
-          className={`p-2.5 rounded-xl border text-xs font-medium flex items-center space-x-2 transition-all ${
+          onClick={() => applySetting({ rotationMode: 'sequential' })}
+          className={`p-2.5 rounded-xl border text-xs font-medium flex items-center space-x-2 transition-all active:scale-[0.98] ${
             user.rotationMode === 'sequential'
-              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
+              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 font-semibold'
               : 'border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
           }`}
         >
@@ -109,11 +122,10 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
         </button>
 
         <button
-          onClick={() => saveSetting({ rotationMode: 'random' })}
-          disabled={saving}
-          className={`p-2.5 rounded-xl border text-xs font-medium flex items-center space-x-2 transition-all ${
+          onClick={() => applySetting({ rotationMode: 'random' })}
+          className={`p-2.5 rounded-xl border text-xs font-medium flex items-center space-x-2 transition-all active:scale-[0.98] ${
             user.rotationMode === 'random'
-              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
+              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 font-semibold'
               : 'border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
           }`}
         >
@@ -139,11 +151,10 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
             return (
               <button
                 key={tab.id}
-                onClick={() => saveSetting({ frequency: tab.id as ScheduleFrequency })}
-                disabled={saving}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
+                onClick={() => applySetting({ frequency: tab.id as ScheduleFrequency })}
+                className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all active:scale-95 ${
                   isSelected
-                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 font-semibold shadow-sm'
                     : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
                 }`}
               >
@@ -164,9 +175,8 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
             {[2, 4, 6, 12].map((hours) => (
               <button
                 key={hours}
-                onClick={() => saveSetting({ intervalHours: hours })}
-                disabled={saving}
-                className={`py-1.5 px-1 rounded-lg text-xs font-semibold border transition-all ${
+                onClick={() => applySetting({ intervalHours: hours })}
+                className={`py-1.5 px-1 rounded-lg text-xs font-semibold border transition-all active:scale-95 ${
                   user.intervalHours === hours
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
                     : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
@@ -191,10 +201,9 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
                 <button
                   key={day.id}
                   onClick={() => handleToggleDay(day.id)}
-                  disabled={saving}
-                  className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                  className={`py-1.5 text-xs font-bold rounded-lg border transition-all active:scale-90 ${
                     isChecked
-                      ? 'border-blue-500 bg-blue-600 text-white'
+                      ? 'border-blue-500 bg-blue-600 text-white shadow-sm'
                       : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
                   }`}
                 >
@@ -213,8 +222,7 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
           </span>
           <select
             value={user.targetDays[0] || 1}
-            onChange={(e) => saveSetting({ targetDays: [Number(e.target.value)] })}
-            disabled={saving}
+            onChange={(e) => applySetting({ targetDays: [Number(e.target.value)] })}
             className="w-full bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs font-semibold py-2 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 focus:outline-none"
           >
             {DAYS.map((day) => (
@@ -237,8 +245,7 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
           </div>
           <select
             value={user.rotateHour}
-            onChange={(e) => saveSetting({ rotateHour: Number(e.target.value) })}
-            disabled={saving}
+            onChange={(e) => applySetting({ rotateHour: Number(e.target.value) })}
             className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 focus:outline-none"
           >
             {Array.from({ length: 24 }).map((_, i) => (
@@ -255,7 +262,7 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({ user, onSettingsUpda
         <button
           onClick={handleTestRotation}
           disabled={testing || !user.accessGranted}
-          className="w-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all text-zinc-800 dark:text-zinc-200 text-xs font-semibold py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 disabled:opacity-50"
+          className="w-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all text-zinc-800 dark:text-zinc-200 text-xs font-semibold py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
         >
           {testing ? (
             <Loader2 className="w-4 h-4 animate-spin" />

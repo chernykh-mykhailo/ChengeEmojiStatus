@@ -42,14 +42,15 @@ export const EmojiListCard: React.FC<EmojiListCardProps> = ({
     }
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      await api.deleteEmoji(id);
-      onEmojiDeleted(id);
-      window.Telegram?.WebApp.HapticFeedback?.impactOccurred('medium');
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDelete = (id: number) => {
+    // 1. Immediate haptic & instant optimistic deletion
+    window.Telegram?.WebApp.HapticFeedback?.impactOccurred('medium');
+    onEmojiDeleted(id);
+
+    // 2. Background sync
+    api.deleteEmoji(id).catch((err) => {
+      console.error('Failed to delete emoji:', err);
+    });
   };
 
   return (
