@@ -60,28 +60,29 @@ export class UserRepository {
     if (existing) {
       const stmt = this.db.prepare(`
         UPDATE users 
-        SET username = ?, first_name = ?, updated_at = CURRENT_TIMESTAMP
+        SET username = ?, first_name = ?, updated_at = ?
         WHERE telegram_id = ?
       `);
-      stmt.run(data.username ?? null, data.firstName, data.telegramId);
+      stmt.run(data.username ?? null, data.firstName, new Date().toISOString(), data.telegramId);
       return this.getById(data.telegramId)!;
     }
 
     const stmt = this.db.prepare(`
-      INSERT INTO users (telegram_id, username, first_name)
-      VALUES (?, ?, ?)
+      INSERT INTO users (telegram_id, username, first_name, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
     `);
-    stmt.run(data.telegramId, data.username ?? null, data.firstName);
+    const now = new Date().toISOString();
+    stmt.run(data.telegramId, data.username ?? null, data.firstName, now, now);
     return this.getById(data.telegramId)!;
   }
 
   public setAccessGranted(telegramId: number, granted: boolean): void {
     const stmt = this.db.prepare(`
       UPDATE users 
-      SET access_granted = ?, updated_at = CURRENT_TIMESTAMP
+      SET access_granted = ?, updated_at = ?
       WHERE telegram_id = ?
     `);
-    stmt.run(granted ? 1 : 0, telegramId);
+    stmt.run(granted ? 1 : 0, new Date().toISOString(), telegramId);
   }
 
   public updateSettings(telegramId: number, settings: UpdateSettingsInput): User | null {
@@ -100,10 +101,10 @@ export class UserRepository {
 
     const stmt = this.db.prepare(`
       UPDATE users
-      SET is_rotation_enabled = ?, rotation_mode = ?, frequency = ?, interval_hours = ?, target_days = ?, rotate_hour = ?, updated_at = CURRENT_TIMESTAMP
+      SET is_rotation_enabled = ?, rotation_mode = ?, frequency = ?, interval_hours = ?, target_days = ?, rotate_hour = ?, updated_at = ?
       WHERE telegram_id = ?
     `);
-    stmt.run(isRotationEnabled, rotationMode, frequency, intervalHours, targetDaysJson, rotateHour, telegramId);
+    stmt.run(isRotationEnabled, rotationMode, frequency, intervalHours, targetDaysJson, rotateHour, new Date().toISOString(), telegramId);
 
     return this.getById(telegramId);
   }
@@ -111,10 +112,11 @@ export class UserRepository {
   public updateEmojiIndex(telegramId: number, newIndex: number): void {
     const stmt = this.db.prepare(`
       UPDATE users 
-      SET current_emoji_index = ?, last_rotated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      SET current_emoji_index = ?, last_rotated_at = ?, updated_at = ?
       WHERE telegram_id = ?
     `);
-    stmt.run(newIndex, telegramId);
+    const now = new Date().toISOString();
+    stmt.run(newIndex, now, now, telegramId);
   }
 
   public getAllActiveUsers(): User[] {

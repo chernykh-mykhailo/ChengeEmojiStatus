@@ -6,7 +6,7 @@ services:
     container_name: tg-emoji-rotator
     restart: unless-stopped
     ports:
-      # Ззовні 3090 (бо 3000 зайнятий drawshare), всередині 3000
+      # Ззовні 3090, всередині 3000
       - "3090:3000"
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
@@ -14,5 +14,6 @@ services:
       - PORT=3000
       - DB_PATH=/app/data/bot.db
       - APP_TIMEZONE=${APP_TIMEZONE:-Europe/Kyiv}
+      - TZ=${APP_TIMEZONE:-Europe/Kyiv}
     volumes:
       - ./data:/app/data

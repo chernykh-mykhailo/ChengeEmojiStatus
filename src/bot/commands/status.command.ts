@@ -13,6 +13,26 @@ const DAY_NAMES: Record<number, string> = {
   7: 'Нд',
 };
 
+function formatLastRotated(dateStr: string | null): string {
+  if (!dateStr) return 'ще не було';
+  try {
+    // If dateStr doesn't have 'Z' or offset, append 'Z' because SQLite CURRENT_TIMESTAMP is UTC
+    const utcStr = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr.replace(' ', 'T')}Z`;
+    const date = new Date(utcStr);
+    return new Intl.DateTimeFormat('uk-UA', {
+      timeZone: env.APP_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(date);
+  } catch {
+    return dateStr;
+  }
+}
+
 export function registerStatusCommand(userService: UserService) {
   return async (ctx: CommandContext<Context>) => {
     if (!ctx.from) return;
@@ -56,6 +76,8 @@ export function registerStatusCommand(userService: UserService) {
       env.WEBAPP_URL
     );
 
+    const formattedLastUpdate = formatLastRotated(user.lastRotatedAt);
+
     const text = [
       '📊 <b>Ваш статус ротації емодзі:</b>',
       '',
@@ -64,7 +86,7 @@ export function registerStatusCommand(userService: UserService) {
       `• Режим: ${modeLabel}`,
       `• Розклад ротації: <b>${scheduleLabel}</b>`,
       `• Емодзі у списку: <b>${emojis.length}</b> шт.`,
-      `• Останнє оновлення: ${user.lastRotatedAt ? user.lastRotatedAt : 'ще не було'}`,
+      `• Останнє оновлення: <b>${formattedLastUpdate}</b> (${env.APP_TIMEZONE})`,
       '',
       '<i>Для зміни налаштувань скористайтеся кнопкою нижче:</i>',
     ].join('\n');
